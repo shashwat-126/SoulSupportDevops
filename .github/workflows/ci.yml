@@ -1,0 +1,111 @@
+name: CI
+
+# Runs unit tests for the backend (Express) and frontend (Next.js).
+#
+# This workflow ONLY runs tests — it never builds, deploys, or pushes
+# anywhere. Vercel handles the actual frontend deployment via its own
+# Git integration and is completely unaffected by this file.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    name: Backend tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20.x", "22.x"]
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run Jest unit tests
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test
+          JWT_EXPIRES_IN: 7d
+          MONGODB_URI: mongodb://localhost:27017/soulsupport-test
+          FRONTEND_URL: http://localhost:3000
+          EMAIL_DISABLE: "true"
+          CLOUDINARY_CLOUD_NAME: test
+          CLOUDINARY_API_KEY: test
+          CLOUDINARY_API_SECRET: test
+        run: npm test -- --ci
+
+      - name: Upload backend coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-node-${{ matrix.node-version }}
+          path: backend/coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+  frontend-tests:
+    name: Frontend tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["20.x", "22.x"]
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run Jest tests with coverage
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000/api
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: npm test -- --ci --coverage
+
+      - name: Upload frontend coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-node-${{ matrix.node-version }}
+          path: frontend/coverage
+          if-no-files-found: ignore
+          retention-days: 7
