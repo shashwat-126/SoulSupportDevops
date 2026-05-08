@@ -1,0 +1,19 @@
+global:
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'jk8272622@gmail.com'
+  smtp_auth_username: 'jk8272622@gmail.com'
+  smtp_auth_password: 'oejffstsgdztyfjx'
+  smtp_require_tls: true
+
+route:
+  receiver: email-alert
+
+receivers:
+  - name: email-alert
+    email_configs:
+      - to: '1ms23cs149@msrit.edu'
+        send_resolved: true
+      - to: '1ms23cs165@msrit.edu'
+        send_resolved: true
+      - to: '1ms23cs168@msrit.edu'
+        send_resolved: true

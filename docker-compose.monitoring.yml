@@ -108,10 +108,15 @@ services:
   alertmanager:
     image: prom/alertmanager:latest
     container_name: soulsupport-alertmanager
+    restart: unless-stopped
     ports:
-      - "9093:9093"
+       - "9093:9093"
+    volumes:
+       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+       - "--config.file=/etc/alertmanager/alertmanager.yml"
     networks:
-      - soulsupport-network
+       - soulsupport-network
 
 
 volumes:
