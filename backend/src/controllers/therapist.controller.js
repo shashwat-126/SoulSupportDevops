@@ -62,7 +62,7 @@ exports.getTherapists = asyncHandler(async (req, res) => {
     limit = 12,
   } = req.query;
 
-  const filter = { isVerified: true };
+  const filter = {};
 
   if (specialization) {
     filter.specializations = specialization;

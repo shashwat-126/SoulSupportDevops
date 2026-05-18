@@ -4,8 +4,12 @@ const morgan = require('morgan');
 const errorHandler = require('./middlewares/error.middleware');
 const { apiLimiter } = require('./middlewares/rateLimiter.middleware');
 const { mongoSanitizeCompat } = require('./middlewares/mongoSanitize.middleware');
+const { register, metricsMiddleware } = require('./metrics');
 
 const app = express();
+
+// Prometheus metrics middleware (track all requests)
+app.use(metricsMiddleware);
 
 // Render (and most PaaS) sit behind a reverse proxy – trust it so
 // express-rate-limit reads the real client IP from X-Forwarded-For.
@@ -57,6 +61,12 @@ if (process.env.NODE_ENV === 'development') {
 // Health check
 app.get(['/health', '/api/health'], (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // API Routes

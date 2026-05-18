@@ -2,6 +2,8 @@ const User = require('../models/User.model');
 const TherapistProfile = require('../models/TherapistProfile.model');
 const Session = require('../models/Session.model');
 const Review = require('../models/Review.model');
+const ForumPost = require('../models/ForumPost.model');
+const Resource = require('../models/Resource.model');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -146,25 +148,84 @@ exports.deleteUser = asyncHandler(async (req, res) => {
 
 /**
  * GET /api/admin/analytics
- * Basic platform-wide counts.
+ * Detailed platform-wide stats.
  */
 exports.getAnalytics = asyncHandler(async (req, res) => {
-  const [totalUsers, totalTherapists, verifiedTherapists, totalSessions, completedSessions, totalReviews] =
-    await Promise.all([
-      User.countDocuments({ userType: 'user', isActive: true }),
-      User.countDocuments({ userType: 'therapist', isActive: true }),
-      TherapistProfile.countDocuments({ isVerified: true }),
-      Session.countDocuments(),
-      Session.countDocuments({ status: 'completed' }),
-      Review.countDocuments(),
-    ]);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [
+    totalUsers,
+    totalTherapists,
+    totalAdmins,
+    verifiedTherapists,
+    totalSessions,
+    completedSessions,
+    pendingSessions,
+    cancelledSessions,
+    confirmedSessions,
+    totalReviews,
+    totalForumPosts,
+    totalResources,
+    newUsersLast30d,
+    newUsersLast7d,
+    sessionsLast30d,
+    sessionsLast7d,
+    inactiveUsers,
+    avgRatingResult,
+  ] = await Promise.all([
+    User.countDocuments({ userType: 'user', isActive: true }),
+    User.countDocuments({ userType: 'therapist', isActive: true }),
+    User.countDocuments({ userType: 'admin', isActive: true }),
+    TherapistProfile.countDocuments({ isVerified: true }),
+    Session.countDocuments(),
+    Session.countDocuments({ status: 'completed' }),
+    Session.countDocuments({ status: 'pending' }),
+    Session.countDocuments({ status: { $in: ['cancelled_by_user', 'cancelled_by_therapist'] } }),
+    Session.countDocuments({ status: 'confirmed' }),
+    Review.countDocuments(),
+    ForumPost.countDocuments(),
+    Resource.countDocuments({ isPublished: true }),
+    User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+    User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+    Session.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+    Session.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+    User.countDocuments({ isActive: false }),
+    Review.aggregate([{ $group: { _id: null, avg: { $avg: '$rating' } } }]),
+  ]);
+
+  const avgRating = avgRatingResult[0]?.avg ?? 0;
 
   res.json(
     new ApiResponse(200, {
-      users: { total: totalUsers },
-      therapists: { total: totalTherapists, verified: verifiedTherapists, pending: totalTherapists - verifiedTherapists },
-      sessions: { total: totalSessions, completed: completedSessions },
-      reviews: { total: totalReviews },
+      users: {
+        total: totalUsers,
+        admins: totalAdmins,
+        inactive: inactiveUsers,
+        newLast7d: newUsersLast7d,
+        newLast30d: newUsersLast30d,
+      },
+      therapists: {
+        total: totalTherapists,
+        verified: verifiedTherapists,
+        pending: totalTherapists - verifiedTherapists,
+      },
+      sessions: {
+        total: totalSessions,
+        completed: completedSessions,
+        pending: pendingSessions,
+        confirmed: confirmedSessions,
+        cancelled: cancelledSessions,
+        last7d: sessionsLast7d,
+        last30d: sessionsLast30d,
+      },
+      reviews: {
+        total: totalReviews,
+        averageRating: Math.round(avgRating * 100) / 100,
+      },
+      forum: { totalPosts: totalForumPosts },
+      resources: { total: totalResources },
     }, 'Analytics retrieved')
   );
 });

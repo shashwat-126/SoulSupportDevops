@@ -16,7 +16,6 @@ services:
     networks:
       - soulsupport-network
 
-
   grafana:
     image: grafana/grafana:latest
     container_name: soulsupport-grafana
@@ -30,100 +29,30 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     networks:
       - soulsupport-network
-
-  promtail:
-    image: grafana/promtail:latest
-    container_name: soulsupport-promtail
-    volumes:
-      - /var/log:/var/log
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./monitoring/promtail/promtail.yaml:/etc/promtail/config.yaml
-    command: -config.file=/etc/promtail/config.yaml
-    networks:
-      - soulsupport-network
-
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: soulsupport-node-exporter
-    restart: unless-stopped
-    ports:
-      - "9100:9100"
-    command:
-      - "--path.rootfs=/host"
-    pid: host
-    volumes:
-      - "/:/host:ro,rslave"
-    networks:
-      - soulsupport-network
-
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: soulsupport-cadvisor
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-    privileged: true
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
-    networks:
-      - soulsupport-network
-
-
-  blackbox-exporter:
-    image: prom/blackbox-exporter:latest
-    container_name: soulsupport-blackbox
-    restart: unless-stopped
-    ports:
-      - "9115:9115"
-    volumes:
-      - ./monitoring/blackbox/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
-    command:
-      - "--config.file=/etc/blackbox_exporter/config.yml"
-    networks:
-      - soulsupport-network
-
-
-  loki:
-    image: grafana/loki:latest
-    container_name: soulsupport-loki
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./loki/config.yaml:/etc/loki/config.yaml:ro
-      - loki_data:/loki
-    command: -config.file=/etc/loki/local-config.yaml
-    networks:
-      - soulsupport-network
-
 
   alertmanager:
     image: prom/alertmanager:latest
     container_name: soulsupport-alertmanager
     restart: unless-stopped
     ports:
-       - "9093:9093"
+      - "9093:9093"
     volumes:
-       - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     command:
-       - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
     networks:
-       - soulsupport-network
-
+      - soulsupport-network
 
 volumes:
   prometheus_data:
   grafana_data:
-  loki_data:
 
 networks:
   soulsupport-network:
-    driver: bridge
+    external: true
+    name: soulsupportdevops_soulsupport-network

@@ -6,6 +6,7 @@ require('dotenv').config();
 const app = require('./app');
 const connectDB = require('./config/db');
 const { startSessionCompletionJob } = require('./services/sessionCompletion.service');
+const { startMetricsRefresh } = require('./metrics');
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,7 @@ const start = async () => {
 
   // 2. Start background jobs only after DB is live.
   startSessionCompletionJob();
+  startMetricsRefresh();
 
   // 3. Start HTTP server.
   const server = app.listen(PORT, () => {
